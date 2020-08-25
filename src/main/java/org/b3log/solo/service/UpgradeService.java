@@ -1,58 +1,36 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.service;
 
-import org.b3log.latke.Keys;
-import org.b3log.latke.Latkes;
-import org.b3log.latke.ioc.inject.Inject;
+import org.b3log.latke.ioc.Inject;
 import org.b3log.latke.logging.Level;
 import org.b3log.latke.logging.Logger;
-import org.b3log.latke.mail.MailService;
-import org.b3log.latke.mail.MailServiceFactory;
-import org.b3log.latke.model.User;
-import org.b3log.latke.repository.Query;
-import org.b3log.latke.repository.Transaction;
-import org.b3log.latke.repository.jdbc.util.Connections;
-import org.b3log.latke.service.LangPropsService;
-import org.b3log.latke.service.ServiceException;
 import org.b3log.latke.service.annotation.Service;
-import org.b3log.solo.SoloServletListener;
-import org.b3log.solo.model.Article;
+import org.b3log.solo.Server;
 import org.b3log.solo.model.Option;
-import org.b3log.solo.model.UserExt;
-import org.b3log.solo.repository.ArticleRepository;
-import org.b3log.solo.repository.CommentRepository;
-import org.b3log.solo.repository.OptionRepository;
-import org.b3log.solo.repository.UserRepository;
-import org.b3log.solo.util.Mails;
-import org.b3log.solo.util.Thumbnails;
-import org.json.JSONArray;
-import org.json.JSONException;
+import org.b3log.solo.upgrade.*;
 import org.json.JSONObject;
-
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.Statement;
 
 /**
  * Upgrade service.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @author <a href="mailto:dongxu.wang@acm.org">Dongxu Wang</a>
- * @version 1.2.0.22, Feb 1, 2018
+ * @version 1.2.1.13, Nov 11, 2019
  * @since 1.2.0
  */
 @Service
@@ -64,282 +42,67 @@ public class UpgradeService {
     private static final Logger LOGGER = Logger.getLogger(UpgradeService.class);
 
     /**
-     * Step for article updating.
-     */
-    private static final int STEP = 50;
-
-    /**
-     * Mail Service.
-     */
-    private static final MailService MAIL_SVC = MailServiceFactory.getMailService();
-
-    /**
-     * Old version.
-     */
-    private static final String FROM_VER = "2.5.0";
-
-    /**
-     * New version.
-     */
-    private static final String TO_VER = SoloServletListener.VERSION;
-
-    /**
-     * Article repository.
+     * Option Query Service.
      */
     @Inject
-    private ArticleRepository articleRepository;
-
-    /**
-     * Comment repository.
-     */
-    @Inject
-    private CommentRepository commentRepository;
-
-    /**
-     * User repository.
-     */
-    @Inject
-    private UserRepository userRepository;
-
-    /**
-     * Option repository.
-     */
-    @Inject
-    private OptionRepository optionRepository;
-
-    /**
-     * Preference Query Service.
-     */
-    @Inject
-    private PreferenceQueryService preferenceQueryService;
-
-    /**
-     * Statistic query service.
-     */
-    @Inject
-    private StatisticQueryService statisticQueryService;
-
-    /**
-     * Language service.
-     */
-    @Inject
-    private LangPropsService langPropsService;
+    private OptionQueryService optionQueryService;
 
     /**
      * Upgrades if need.
      */
     public void upgrade() {
         try {
-            final JSONObject preference = preferenceQueryService.getPreference();
+            final JSONObject preference = optionQueryService.getPreference();
             if (null == preference) {
                 return;
             }
 
-            final String currentVer = preference.getString(Option.ID_C_VERSION);
-            if (SoloServletListener.VERSION.equals(currentVer)) {
+            final String currentVer = preference.getString(Option.ID_C_VERSION); // 数据库中的版本
+            if (Server.VERSION.equals(currentVer)) {
+                // 如果数据库中的版本和运行时版本一致则说明已经是最新版
                 return;
             }
 
-            if (FROM_VER.equals(currentVer)) {
-                perform();
+            // 如果版本较老，则调用对应的升级程序进行升级，并贯穿升级下去直到最新版
+            switch (currentVer) {
+                case "2.9.9":
+                    V299_300.perform();
+                case "3.0.0":
+                    V300_310.perform();
+                case "3.1.0":
+                    V310_320.perform();
+                case "3.2.0":
+                    V320_330.perform();
+                case "3.3.0":
+                    V330_340.perform();
+                case "3.4.0":
+                    V340_350.perform();
+                case "3.5.0":
+                    V350_360.perform();
+                case "3.6.0":
+                    V360_361.perform();
+                case "3.6.1":
+                    V361_362.perform();
+                case "3.6.2":
+                    V362_363.perform();
+                case "3.6.3":
+                    V363_364.perform();
+                case "3.6.4":
+                    V364_365.perform();
+                case "3.6.5":
+                    V365_366.perform();
+                case "3.6.6":
+                    V366_367.perform();
 
-                return;
+                    break;
+                default:
+                    LOGGER.log(Level.ERROR, "Please upgrade to v3.0.0 first");
+                    System.exit(-1);
             }
-
-            LOGGER.log(Level.ERROR, "Attempt to skip more than one version to upgrade. Expected: {0}, Actually: {1}", FROM_VER, currentVer);
-            notifyUserByEmail();
-
+        } catch (final Exception e) {
+            LOGGER.log(Level.ERROR, "Upgrade failed, please contact the Solo developers or reports this "
+                    + "issue: https://github.com/b3log/solo/issues/new", e);
             System.exit(-1);
-        } catch (final Exception e) {
-            LOGGER.log(Level.ERROR, e.getMessage(), e);
-            LOGGER.log(Level.ERROR,
-                    "Upgrade failed [" + e.getMessage() + "], please contact the Solo developers or reports this "
-                            + "issue directly (<a href='https://github.com/b3log/solo/issues/new'>"
-                            + "https://github.com/b3log/solo/issues/new</a>) ");
-
-            System.exit(-1);
         }
-    }
-
-    /**
-     * Performs upgrade.
-     *
-     * @throws Exception upgrade fails
-     */
-    private void perform() throws Exception {
-        LOGGER.log(Level.INFO, "Upgrading from version [{0}] to version [{1}]....", FROM_VER, TO_VER);
-
-        final Transaction transaction = optionRepository.beginTransaction();
-        try {
-            final JSONObject versionOpt = optionRepository.get(Option.ID_C_VERSION);
-            versionOpt.put(Option.OPTION_VALUE, TO_VER);
-            optionRepository.update(Option.ID_C_VERSION, versionOpt);
-
-            transaction.commit();
-        } catch (final Exception e) {
-            if (null != transaction && transaction.isActive()) {
-                transaction.rollback();
-            }
-
-            LOGGER.log(Level.ERROR, "Upgrade failed!", e);
-            throw new Exception("Upgrade failed from version [" + FROM_VER + "] to version [" + TO_VER + ']');
-        }
-
-        LOGGER.log(Level.INFO, "Upgraded from version [{0}] to version [{1}] successfully :-)", FROM_VER, TO_VER);
-    }
-
-    /**
-     * Alters database tables.
-     *
-     * @throws Exception exception
-     */
-    private void alterTables() throws Exception {
-        final Connection connection = Connections.getConnection();
-        final Statement statement = connection.createStatement();
-
-        final String tablePrefix = Latkes.getLocalProperty("jdbc.tablePrefix") + "_";
-        statement.executeUpdate("ALTER TABLE `" + tablePrefix + "page` ADD `pageIcon` VARCHAR(255) NOT NULL;");
-        statement.close();
-        connection.commit();
-        connection.close();
-    }
-
-    /**
-     * Drops database tables.
-     *
-     * @throws Exception exception
-     */
-    private void dropTables() throws Exception {
-        final Connection connection = Connections.getConnection();
-        final Statement statement = connection.createStatement();
-
-        final String tablePrefix = Latkes.getLocalProperty("jdbc.tablePrefix") + "_";
-        statement.execute("DROP TABLE `" + tablePrefix + "statistic`;");
-        statement.close();
-        connection.commit();
-        connection.close();
-    }
-
-    /**
-     * Upgrade database tables.
-     *
-     * @throws Exception exception
-     */
-    private void upgradeTables() throws Exception {
-        final Connection connection = Connections.getConnection();
-        final Statement statement = connection.createStatement();
-
-        final String tablePrefix = Latkes.getLocalProperty("jdbc.tablePrefix") + "_";
-        statement.execute("CREATE TABLE `" + tablePrefix + "category` (\n" +
-                "  `oId` varchar(19) NOT NULL,\n" +
-                "  `categoryTitle` varchar(64) NOT NULL,\n" +
-                "  `categoryURI` varchar(32) NOT NULL,\n" +
-                "  `categoryDescription` text NOT NULL,\n" +
-                "  `categoryOrder` int(11) NOT NULL,\n" +
-                "  `categoryTagCnt` int(11) NOT NULL,\n" +
-                "  PRIMARY KEY (`oId`)\n" +
-                ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-        statement.execute("CREATE TABLE `" + tablePrefix + "category_tag` (\n" +
-                "  `oId` varchar(19) NOT NULL,\n" +
-                "  `category_oId` varchar(19) NOT NULL,\n" +
-                "  `tag_oId` varchar(19) NOT NULL,\n" +
-                "  PRIMARY KEY (`oId`)\n" +
-                ") ENGINE=InnoDB DEFAULT CHARSET=utf8;");
-        statement.close();
-        connection.commit();
-        connection.close();
-    }
-
-    /**
-     * Upgrades users.
-     * <p>
-     * Password hashing.
-     * </p>
-     *
-     * @throws Exception exception
-     */
-    private void upgradeUsers() throws Exception {
-        final JSONArray users = userRepository.get(new Query()).getJSONArray(Keys.RESULTS);
-
-        for (int i = 0; i < users.length(); i++) {
-            final JSONObject user = users.getJSONObject(i);
-            final String email = user.optString(User.USER_EMAIL);
-            user.put(UserExt.USER_AVATAR, Thumbnails.getGravatarURL(email, "128"));
-
-            userRepository.update(user.optString(Keys.OBJECT_ID), user);
-            LOGGER.log(Level.INFO, "Updated user[email={0}]", email);
-        }
-    }
-
-    /**
-     * Upgrades articles.
-     *
-     * @throws Exception exception
-     */
-    private void upgradeArticles() throws Exception {
-        LOGGER.log(Level.INFO, "Adds a property [articleEditorType] to each of articles");
-
-        final JSONArray articles = articleRepository.get(new Query()).getJSONArray(Keys.RESULTS);
-        if (articles.length() <= 0) {
-            LOGGER.log(Level.TRACE, "No articles");
-            return;
-        }
-
-        Transaction transaction = null;
-        try {
-            for (int i = 0; i < articles.length(); i++) {
-                if (0 == i % STEP || !transaction.isActive()) {
-                    transaction = userRepository.beginTransaction();
-                }
-
-                final JSONObject article = articles.getJSONObject(i);
-                final String articleId = article.optString(Keys.OBJECT_ID);
-                LOGGER.log(Level.INFO, "Found an article[id={0}]", articleId);
-                article.put(Article.ARTICLE_EDITOR_TYPE, "tinyMCE");
-
-                articleRepository.update(article.getString(Keys.OBJECT_ID), article);
-
-                if (0 == i % STEP) {
-                    transaction.commit();
-                    LOGGER.log(Level.TRACE, "Updated some articles");
-                }
-            }
-
-            if (transaction.isActive()) {
-                transaction.commit();
-            }
-
-            LOGGER.log(Level.TRACE, "Updated all articles");
-        } catch (final Exception e) {
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-
-            throw e;
-        }
-    }
-
-    /**
-     * Send an email to the user who upgrades Solo with a discontinuous version.
-     *
-     * @throws ServiceException ServiceException
-     * @throws JSONException    JSONException
-     * @throws IOException      IOException
-     */
-    private void notifyUserByEmail() throws ServiceException, JSONException, IOException {
-        if (!Mails.isConfigured()) {
-            return;
-        }
-
-        final String adminEmail = preferenceQueryService.getPreference().getString(Option.ID_C_ADMIN_EMAIL);
-        final MailService.Message message = new MailService.Message();
-        message.setFrom(adminEmail);
-        message.addRecipient(adminEmail);
-        message.setSubject(langPropsService.get("skipVersionMailSubject"));
-        message.setHtmlBody(langPropsService.get("skipVersionMailBody"));
-
-        MAIL_SVC.send(message);
-
-        LOGGER.info("Send an email to the user who upgrades Solo with a discontinuous version.");
     }
 }

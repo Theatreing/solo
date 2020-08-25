@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
     Description: Solo POM.
-    Version: 3.18.2.54, Feb 13, 2018
+    Version: 3.18.3.76, Nov 22, 2019
     Author: <a href="http://88250.b3log.org">Liang Ding</a>
     Author: <a href="http://www.annpeter.cn">Ann Peter</a>
     Author: <a href="http://vanessa.b3log.org">Vanessa</a>
     Author: <a href="https://github.com/nanolikeyou">nanolikeyou</a>
+    Author: <a href="https://github.com/hzchendou">hzchendou</a>
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -13,55 +14,53 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.b3log</groupId>
     <artifactId>solo</artifactId>
-    <packaging>war</packaging>
+    <packaging>jar</packaging>
     <name>Solo</name>
-    <version>2.6.0</version>
+    <version>3.6.7</version>
     <description>
-        A blogging system written in Java, feel free to create your or your team own blog.
-        一个用 Java 实现的博客系统，为你或你的团队创建个博客吧！
+        一款小而美的博客系统，专为程序员设计。
     </description>
     <inceptionYear>2010</inceptionYear>
 
     <organization>
         <name>B3log</name>
-        <url>http://b3log.org</url>
+        <url>https://b3log.org</url>
     </organization>
 
     <licenses>
         <license>
-            <name>Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+            <name>GNU Affero General Public License, Version 3</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.txt</url>
         </license>
     </licenses>
 
     <developers>
         <developer>
-            <id>DL88250@gmail.com</id>
+            <id>d@b3log.org</id>
             <name>Liang Ding</name>
-            <email>DL88250@gmail.com</email>
+            <email>d@b3log.org</email>
             <url>http://88250.b3log.org</url>
             <roles>
                 <role>Lead</role>
                 <role>Initial Committer</role>
             </roles>
             <organization>B3log</organization>
-            <organizationUrl>http://b3log.org</organizationUrl>
+            <organizationUrl>https://b3log.org</organizationUrl>
             <timezone>+8</timezone>
         </developer>
 
         <developer>
-            <id>LLY219@gmail.com</id>
+            <id>v@b3log.org</id>
             <name>Liyuan Li</name>
-            <email>LLY219@gmail.com</email>
+            <email>v@b3log.org</email>
             <url>http://vanessa.b3log.org</url>
             <roles>
                 <role>Committer</role>
             </roles>
             <organization>B3log</organization>
-            <organizationUrl>http://b3log.org</organizationUrl>
+            <organizationUrl>https://b3log.org</organizationUrl>
             <timezone>+8</timezone>
         </developer>
-
     </developers>
 
     <issueManagement>
@@ -74,47 +73,42 @@
     </scm>
 
     <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <org.b3log.latke.version>3.0.17</org.b3log.latke.version>
 
-        <org.b3log.latke.version>2.3.17</org.b3log.latke.version>
-
-        <servlet.version>3.1.0</servlet.version>
-        <slf4j.version>1.7.5</slf4j.version>
-        <jsoup.version>1.9.1</jsoup.version>
-        <flexmark.version>0.28.18</flexmark.version>
-        <qiniu.version>7.0.4.1</qiniu.version>
-        <jetty.version>9.2.9.v20150224</jetty.version>
+        <slf4j.version>1.7.28</slf4j.version>
+        <jsoup.version>1.12.1</jsoup.version>
+        <flexmark.version>0.50.40</flexmark.version>
         <commons-cli.version>1.3.1</commons-cli.version>
         <commons-codec.version>1.10</commons-codec.version>
-        <emoji-java.version>3.2.0</emoji-java.version>
-        <jodd.version>3.6.6</jodd.version>
+        <emoji-java.version>5.1.0</emoji-java.version>
+        <jodd.version>5.0.13</jodd.version>
+        <owasp.version>1.2.2</owasp.version>
         <snakeyaml.version>1.18</snakeyaml.version>
+        <user-agent-utils.version>1.21</user-agent-utils.version>
 
-        <!-- maven plugin -->
-        <maven-compiler-plugin.version>3.3</maven-compiler-plugin.version>
-        <maven-resources-plugin.version>2.7</maven-resources-plugin.version>
-        <maven-surefire-plugin.version>2.18.1</maven-surefire-plugin.version>
-        <maven-license-plugin.version>1.9.0</maven-license-plugin.version>
+        <license-maven-plugin.version>3.0</license-maven-plugin.version>
+        <maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
         <coveralls-maven-plugin.version>4.3.0</coveralls-maven-plugin.version>
-        <cobertura-maven-plugin.version>2.7</cobertura-maven-plugin.version>
-        <maven-min-plugin.version>1.0.3</maven-min-plugin.version>
-        <!-- Unit Test -->
+        <jacoco-maven-plugin.version>0.8.2</jacoco-maven-plugin.version>
         <testng.version>6.1.1</testng.version>
-        <!-- JDBC Drivers -->
-        <mysql-connector-java.version>5.1.42</mysql-connector-java.version>
+        <mysql-connector-java.version>8.0.18</mysql-connector-java.version>
+
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.b3log</groupId>
-            <artifactId>latke</artifactId>
+            <artifactId>latke-core</artifactId>
             <version>${org.b3log.latke.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>${servlet.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>redis.clients</groupId>
+                    <artifactId>jedis</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -187,27 +181,21 @@
         </dependency>
 
         <dependency>
-            <groupId>com.qiniu</groupId>
-            <artifactId>qiniu-java-sdk</artifactId>
-            <version>${qiniu.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>commons-cli</groupId>
             <artifactId>commons-cli</artifactId>
             <version>${commons-cli.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-webapp</artifactId>
-            <version>${jetty.version}</version>
-        </dependency>
-
-        <dependency>
             <groupId>org.jodd</groupId>
             <artifactId>jodd-http</artifactId>
             <version>${jodd.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.owasp.encoder</groupId>
+            <artifactId>encoder</artifactId>
+            <version>${owasp.version}</version>
         </dependency>
 
         <dependency>
@@ -223,18 +211,9 @@
         </dependency>
 
         <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-all</artifactId>
-            <version>1.9.5</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.patchca</groupId>
-            <artifactId>patchca</artifactId>
-            <version>0.5.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/lib/net/pusuo/patchca-0.5.0.jar</systemPath>
+            <groupId>eu.bitwalker</groupId>
+            <artifactId>UserAgentUtils</artifactId>
+            <version>${user-agent-utils.version}</version>
         </dependency>
 
     </dependencies>
@@ -245,6 +224,8 @@
                 <directory>src/main/resources</directory>
                 <excludes>
                     <exclude>etc/</exclude>
+                    <exclude>lib/</exclude>
+                    <exclude>docker/</exclude>
                 </excludes>
             </resource>
         </resources>
@@ -260,42 +241,17 @@
             </plugin>
 
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>cobertura-maven-plugin</artifactId>
-                <version>${cobertura-maven-plugin.version}</version>
-                <configuration>
-                    <check>true</check>
-                    <format>xml</format>
-                    <aggregate>true</aggregate>
-                    <instrumentation>
-                        <excludes>
-                            <exclude>org/b3log/solo/model/**</exclude>
-                            <exclude>org/b3log/solo/dev/**</exclude>
-                            <exclude>org/b3log/solo/SoloServletListener.class</exclude>
-                            <exclude>org/b3log/solo/Starter.class</exclude>
-                        </excludes>
-                    </instrumentation>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-resources-plugin</artifactId>
-                <version>${maven-resources-plugin.version}</version>
-                <configuration>
-                    <encoding>UTF-8</encoding>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                    <encoding>UTF-8</encoding>
-                </configuration>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -303,14 +259,14 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <skipTests>false</skipTests>
+                    <useSystemClassLoader>false</useSystemClassLoader>
                 </configuration>
             </plugin>
 
             <plugin>
-                <groupId>com.mycila.maven-license-plugin</groupId>
-                <artifactId>maven-license-plugin</artifactId>
-                <version>${maven-license-plugin.version}</version>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>${license-maven-plugin.version}</version>
                 <configuration>
                     <header>src/main/resources/etc/header.txt</header>
                     <quiet>false</quiet>
@@ -319,115 +275,109 @@
                     <strictCheck>true</strictCheck>
                     <includes>
                         <include>**/src/*/java/**/*.java</include>
-                        <include>**/src/*/webapp/js/*.js</include>
-                        <include>**/src/*/webapp/js/marked/*.js</include>
-                        <include>**/src/*/webapp/css/*.css</include>
-                        <include>**/src/*/webapp/skins/*/js/*.js</include>
-                        <include>**/src/*/webapp/skins/*/css/*.css</include>
-                        <include>**/src/*/webapp/skins/**/*.properties</include>
-                        <include>**/src/*/webapp/plugins/*/js/*.js</include>
-                        <include>**/src/*/webapp/plugins/*/css/*.css</include>
-                        <include>**/src/*/webapp/plugins/*/*.properties</include>
-                        <include>**/src/*/webapp/js/admin/*.js</include>
+                        <include>**/src/*/resources/js/*.js</include>
+                        <include>**/src/*/resources/scss/*.scss</include>
+                        <include>**/src/*/resources/**/*.ftl</include>
+                        <include>**/src/*/resources/skins/*/js/*.js</include>
+                        <include>**/src/*/resources/skins/**/*.scss</include>
+                        <include>**/src/*/resources/skins/**/*.properties</include>
+                        <include>**/src/*/resources/plugins/*/js/*.js</include>
+                        <include>**/src/*/resources/plugins/*/css/*.css</include>
+                        <include>**/src/*/resources/plugins/*/*.properties</include>
+                        <include>**/src/*/resources/js/admin/*.js</include>
                         <include>**/src/*/resources/*.properties</include>
-                        <include>**/src/*/webapp/WEB-INF/*.xml</include>
+                        <include>**/src/test/resources/**/*</include>
+                        <include>**/src/*/resources/docker/*</include>
                     </includes>
                     <excludes>
                         <exclude>**/src/main/java/**/package-info.java</exclude>
-                        <exclude>**/src/*/webapp/js/lib/*.js</exclude>
+                        <exclude>**/src/*/resources/js/lib/*.js</exclude>
+                        <include>**/src/*/resources/js/*.min.js</include>
+                        <include>**/src/*/resources/js/admin/*.min.js</include>
+                        <include>**/src/*/resources/skins/*/js/*.min.js</include>
+                        <include>**/src/*/resources/skins/*/css/*.css</include>
                         <exclude>**/src/main/java/com/**/*.java</exclude>
                     </excludes>
 
                     <useDefaultExcludes>true</useDefaultExcludes>
                     <mapping>
                         <java>SLASHSTAR_STYLE</java>
+                        <scss>SLASHSTAR_STYLE</scss>
                     </mapping>
                     <useDefaultMapping>true</useDefaultMapping>
                     <properties>
-                        <year>2010-2018</year>
-                        <devTeam>b3log.org &amp; hacpai.com</devTeam>
+                        <year>2010-present</year>
+                        <devTeam>b3log.org</devTeam>
                     </properties>
                     <encoding>UTF-8</encoding>
                 </configuration>
                 <executions>
-                    <!--
                     <execution>
                         <phase>generate-sources</phase>
                         <goals>
                             <goal>format</goal>
                         </goals>
                     </execution>
-                    -->
                 </executions>
             </plugin>
 
             <plugin>
-                <groupId>org.b3log</groupId>
-                <artifactId>maven-min-plugin</artifactId>
-                <version>${maven-min-plugin.version}</version>
-                <inherited>false</inherited>
-
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <suffix>.min</suffix>
-                    <!-- Common#MINI_POSTFIX_VALUE -->
-                    <adminJSs>
-                        <param>admin.js</param>
-                        <param>editor.js</param>
-                        <param>editorTinyMCE.js</param>
-                        <param>editorKindEditor.js</param>
-                        <param>editorCodeMirror.js</param>
-                        <param>tablePaginate.js</param>
-                        <param>article.js</param>
-                        <param>comment.js</param>
-                        <param>articleList.js</param>
-                        <param>draftList.js</param>
-                        <param>pageList.js</param>
-                        <param>others.js</param>
-                        <param>linkList.js</param>
-                        <param>preference.js</param>
-                        <param>pluginList.js</param>
-                        <param>userList.js</param>
-                        <param>categoryList.js</param>
-                        <param>commentList.js</param>
-                        <param>plugin.js</param>
-                        <param>main.js</param>
-                        <param>about.js</param>
-                    </adminJSs>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.b3log.solo.Server</mainClass>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
 
-                    <cssSourceDir>src/main/webapp/css</cssSourceDir>
-                    <cssTargetDir>src/main/webapp/css</cssTargetDir>
-
-                    <jsSourceDir>src/main/webapp/js</jsSourceDir>
-                    <jsTargetDir>src/main/webapp/js</jsTargetDir>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/assembly/bin.xml</descriptor>
+                    </descriptors>
                 </configuration>
                 <executions>
-                    <!--
                     <execution>
-                        <phase>process-resources</phase>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
                         <goals>
-                            <goal>min</goal>
+                            <goal>single</goal>
                         </goals>
                     </execution>
-                    -->
                 </executions>
             </plugin>
 
+            <!-- 需要打 jar 部署的话注释掉上面的配置，启用下面这段配置
             <plugin>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-maven-plugin</artifactId>
-                <version>${jetty.version}</version>
+                <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
-                    <httpConnector>
-                        <port>8080</port>
-                    </httpConnector>
-                    <stopKey>stop</stopKey>
-                    <stopPort>4501</stopPort>
-                    <webAppConfig>
-                        <contextPath>/</contextPath>
-                    </webAppConfig>
-                    <scanIntervalSeconds>1</scanIntervalSeconds>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.b3log.solo.Server</mainClass>
+                        </manifest>
+                    </archive>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>assembly</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
+            -->
 
         </plugins>
 

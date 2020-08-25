@@ -1,21 +1,26 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.model;
 
+import org.apache.commons.lang.StringUtils;
+import org.b3log.solo.util.Images;
 import org.b3log.solo.util.Markdowns;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Whitelist;
 
@@ -23,7 +28,7 @@ import org.jsoup.safety.Whitelist;
  * This class defines all article model relevant keys.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.1.1.6, Jun 25, 2017
+ * @version 1.5.0.2, Sep 12, 2019
  * @since 0.3.1
  */
 public final class Article {
@@ -49,14 +54,24 @@ public final class Article {
     public static final String ARTICLE_ABSTRACT = "articleAbstract";
 
     /**
+     * Key of abstract text.
+     */
+    public static final String ARTICLE_ABSTRACT_TEXT = "articleAbstractText";
+
+    /**
      * Key of content.
      */
     public static final String ARTICLE_CONTENT = "articleContent";
 
     /**
+     * Key of created at.
+     */
+    public static final String ARTICLE_CREATED = "articleCreated";
+
+    /**
      * Key of create date.
      */
-    public static final String ARTICLE_CREATE_DATE = "articleCreateDate";
+    public static final String ARTICLE_T_CREATE_DATE = "articleCreateDate";
 
     /**
      * Key of create time.
@@ -64,9 +79,14 @@ public final class Article {
     public static final String ARTICLE_CREATE_TIME = "articleCreateTime";
 
     /**
+     * Key of updated at.
+     */
+    public static final String ARTICLE_UPDATED = "articleUpdated";
+
+    /**
      * Key of update date.
      */
-    public static final String ARTICLE_UPDATE_DATE = "articleUpdateDate";
+    public static final String ARTICLE_T_UPDATE_DATE = "articleUpdateDate";
 
     /**
      * Key of update time.
@@ -109,19 +129,9 @@ public final class Article {
     public static final String ARTICLE_PUT_TOP = "articlePutTop";
 
     /**
-     * Key of is published.
+     * Key of author id.
      */
-    public static final String ARTICLE_IS_PUBLISHED = "articleIsPublished";
-
-    /**
-     * Key of author email.
-     */
-    public static final String ARTICLE_AUTHOR_EMAIL = "articleAuthorEmail";
-
-    /**
-     * Key of had been published.
-     */
-    public static final String ARTICLE_HAD_BEEN_PUBLISHED = "articleHadBeenPublished";
+    public static final String ARTICLE_AUTHOR_ID = "articleAuthorId";
 
     /**
      * Key of random double.
@@ -139,11 +149,34 @@ public final class Article {
     public static final String ARTICLE_VIEW_PWD = "articleViewPwd";
 
     /**
-     * Key of article editor type.
+     * Key of article image1 URL. https://github.com/b3log/solo/issues/12670
      */
-    public static final String ARTICLE_EDITOR_TYPE = "articleEditorType";
+    public static final String ARTICLE_IMG1_URL = "articleImg1URL";
 
-    //// constants
+    /**
+     * Key of article status.
+     */
+    public static final String ARTICLE_STATUS = "articleStatus";
+
+    //// Status constants
+
+    /**
+     * Article status - published.
+     */
+    public static final int ARTICLE_STATUS_C_PUBLISHED = 0;
+
+    /**
+     * Article status - draft.
+     */
+    public static final int ARTICLE_STATUS_C_DRAFT = 1;
+
+    //// Transient ////
+    /**
+     * Key of article ToC.
+     */
+    public static final String ARTICLE_T_TOC = "articleToC";
+
+    //// Other constants
 
     /**
      * Article abstract length.
@@ -151,23 +184,85 @@ public final class Article {
     private static final int ARTICLE_ABSTRACT_LENGTH = 500;
 
     /**
-     * Private default constructor.
+     * Width of article first image.
+     */
+    public static final int ARTICLE_THUMB_IMG_WIDTH = 1280;
+
+    /**
+     * Height of article first image.
+     */
+    public static final int ARTICLE_THUMB_IMG_HEIGHT = 720;
+
+    /**
+     * Private constructor.
      */
     private Article() {
     }
 
     /**
-     * Gets the abstract of the specified content.
+     * Gets the first image URL of the specified article.
      *
-     * @param content the specified content
-     * @return the abstract
+     * @param article the specified article
+     * @return the first image URL, returns {@code ""} if not found
      */
-    public static String getAbstract(final String content) {
-        final String plainTextContent = Jsoup.clean(Markdowns.toHTML(content), Whitelist.none());
-        if (plainTextContent.length() > ARTICLE_ABSTRACT_LENGTH) {
-            return plainTextContent.substring(0, ARTICLE_ABSTRACT_LENGTH) + "....";
+    public static String getArticleImg1URL(final JSONObject article) {
+        final String summary = article.optString(Article.ARTICLE_ABSTRACT);
+        String content = article.optString(Article.ARTICLE_CONTENT);
+        content = summary + "\n\n" + content;
+        final String html = Markdowns.toHTML(content);
+        final String[] imgs = StringUtils.substringsBetween(html, "<img", ">");
+        if (null == imgs || 0 == imgs.length) {
+            return Images.imageSize(Images.randImage(), ARTICLE_THUMB_IMG_WIDTH, ARTICLE_THUMB_IMG_HEIGHT);
         }
 
-        return plainTextContent;
+        String ret = null;
+        for (final String img : imgs) {
+            ret = StringUtils.substringBetween(img, "src=\"", "\"");
+            if (!StringUtils.containsIgnoreCase(ret, ".ico")) {
+                break;
+            }
+        }
+
+        if (StringUtils.isBlank(ret)) {
+            return Images.imageSize(Images.randImage(), ARTICLE_THUMB_IMG_WIDTH, ARTICLE_THUMB_IMG_HEIGHT);
+        }
+
+        ret = Images.imageSize(ret, ARTICLE_THUMB_IMG_WIDTH, ARTICLE_THUMB_IMG_HEIGHT);
+
+        return ret;
+    }
+
+    /**
+     * Gets the abstract plain text of the specified content.
+     *
+     * @param content the specified content
+     * @return the abstract plain text
+     */
+    public static String getAbstractText(final String content) {
+        final String ret = Jsoup.clean(Markdowns.toHTML(content), Whitelist.none());
+        if (ret.length() > ARTICLE_ABSTRACT_LENGTH) {
+            return ret.substring(0, ARTICLE_ABSTRACT_LENGTH) + "....";
+        }
+
+        return ret;
+    }
+
+    /**
+     * Gets the abstract plain text of the specified article.
+     *
+     * @param article the specified article
+     * @return the abstract plain text
+     */
+    public static String getAbstractText(final JSONObject article) {
+        String content = article.optString(Article.ARTICLE_ABSTRACT);
+        if (StringUtils.isBlank(content)) {
+            if (StringUtils.isNotBlank(article.optString(Article.ARTICLE_VIEW_PWD))) {
+                return "";
+            }
+
+            content = article.optString(Article.ARTICLE_CONTENT);
+        }
+
+        return getAbstractText(content);
     }
 }

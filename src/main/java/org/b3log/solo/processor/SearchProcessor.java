@@ -1,45 +1,51 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.processor;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.b3log.latke.Latkes;
-import org.b3log.latke.ioc.inject.Inject;
+import org.b3log.latke.http.HttpMethod;
+import org.b3log.latke.http.Request;
+import org.b3log.latke.http.RequestContext;
+import org.b3log.latke.http.annotation.RequestProcessing;
+import org.b3log.latke.http.annotation.RequestProcessor;
+import org.b3log.latke.http.renderer.AbstractFreeMarkerRenderer;
+import org.b3log.latke.http.renderer.TextXmlRenderer;
+import org.b3log.latke.ioc.Inject;
 import org.b3log.latke.logging.Level;
 import org.b3log.latke.logging.Logger;
 import org.b3log.latke.model.Pagination;
 import org.b3log.latke.service.LangPropsService;
-import org.b3log.latke.servlet.HTTPRequestContext;
-import org.b3log.latke.servlet.HTTPRequestMethod;
-import org.b3log.latke.servlet.annotation.RequestProcessing;
-import org.b3log.latke.servlet.annotation.RequestProcessor;
-import org.b3log.latke.servlet.renderer.freemarker.AbstractFreeMarkerRenderer;
-import org.b3log.latke.util.Strings;
+import org.b3log.latke.util.Paginator;
 import org.b3log.solo.model.Article;
 import org.b3log.solo.model.Common;
-import org.b3log.solo.processor.renderer.ConsoleRenderer;
-import org.b3log.solo.processor.util.Filler;
+import org.b3log.solo.model.Option;
 import org.b3log.solo.service.ArticleQueryService;
-import org.b3log.solo.service.PreferenceQueryService;
+import org.b3log.solo.service.DataModelService;
+import org.b3log.solo.service.OptionQueryService;
 import org.b3log.solo.service.UserQueryService;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.safety.Whitelist;
+import org.owasp.encoder.Encode;
 
-import javax.servlet.http.HttpServletRequest;
+import java.io.InputStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +55,7 @@ import java.util.Map;
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
  * @author <a href="http://vanessa.b3log.org">Liyuan Li</a>
- * @version 1.0.1.0, Oct 11, 2017
+ * @version 1.1.1.3, Mar 19, 2019
  * @since 2.4.0
  */
 @RequestProcessor
@@ -73,10 +79,10 @@ public class SearchProcessor {
     private UserQueryService userQueryService;
 
     /**
-     * Preference query service.
+     * Option query service.
      */
     @Inject
-    private PreferenceQueryService preferenceQueryService;
+    private OptionQueryService optionQueryService;
 
     /**
      * Language service.
@@ -85,58 +91,66 @@ public class SearchProcessor {
     private LangPropsService langPropsService;
 
     /**
-     * Filler.
+     * DataModelService.
      */
     @Inject
-    private Filler filler;
+    private DataModelService dataModelService;
+
+    /**
+     * Shows opensearch.xml.
+     *
+     * @param context the specified context
+     */
+    @RequestProcessing(value = "/opensearch.xml", method = HttpMethod.GET)
+    public void showOpensearchXML(final RequestContext context) {
+        final TextXmlRenderer renderer = new TextXmlRenderer();
+        context.setRenderer(renderer);
+
+        try {
+            final InputStream resourceAsStream = SearchProcessor.class.getResourceAsStream("/opensearch.xml");
+            String content = IOUtils.toString(resourceAsStream, "UTF-8");
+            final JSONObject preference = optionQueryService.getPreference();
+            content = StringUtils.replace(content, "${blogTitle}", Jsoup.clean(preference.optString(Option.ID_C_BLOG_TITLE), Whitelist.none()));
+            content = StringUtils.replace(content, "${blogSubtitle}", Jsoup.clean(preference.optString(Option.ID_C_BLOG_SUBTITLE), Whitelist.none()));
+            content = StringUtils.replace(content, "${servePath}", Latkes.getServePath());
+
+            renderer.setContent(content);
+        } catch (final Exception e) {
+            LOGGER.log(Level.ERROR, "Shows opensearch.xml failed", e);
+        }
+    }
 
     /**
      * Searches articles.
      *
      * @param context the specified context
      */
-    @RequestProcessing(value = "/search", method = HTTPRequestMethod.GET)
-    public void search(final HTTPRequestContext context) {
-        final AbstractFreeMarkerRenderer renderer = new ConsoleRenderer();
-        context.setRenderer(renderer);
-        renderer.setTemplateName("search.ftl");
-
+    @RequestProcessing(value = "/search", method = HttpMethod.GET)
+    public void search(final RequestContext context) {
+        final Request request = context.getRequest();
+        final AbstractFreeMarkerRenderer renderer = new SkinRenderer(context, "common-template/search.ftl");
         final Map<String, String> langs = langPropsService.getAll(Latkes.getLocale());
         final Map<String, Object> dataModel = renderer.getDataModel();
         dataModel.putAll(langs);
 
-        final HttpServletRequest request = context.getRequest();
-
-        String page = request.getParameter("p");
-        if (!Strings.isNumeric(page)) {
-            page = "1";
-        }
-        final int pageNum = Integer.valueOf(page);
-        String keyword = request.getParameter(Common.KEYWORD);
+        final int pageNum = Paginator.getPage(request);
+        String keyword = context.param(Common.KEYWORD);
         if (StringUtils.isBlank(keyword)) {
             keyword = "";
         }
-        keyword = Jsoup.clean(keyword, Whitelist.none());
+        keyword = Encode.forHtml(keyword);
 
         dataModel.put(Common.KEYWORD, keyword);
         final JSONObject result = articleQueryService.searchKeyword(keyword, pageNum, 15);
         final List<JSONObject> articles = (List<JSONObject>) result.opt(Article.ARTICLES);
 
         try {
-            final JSONObject preference = preferenceQueryService.getPreference();
+            final JSONObject preference = optionQueryService.getPreference();
 
-            filler.fillBlogHeader(request, context.getResponse(), dataModel, preference);
-            filler.fillBlogFooter(request, dataModel, preference);
-            filler.fillSide(request, dataModel, preference);
-
-            final boolean hasMultipleUsers = userQueryService.hasMultipleUsers();
-            if (hasMultipleUsers) {
-                filler.setArticlesExProperties(request, articles, preference);
-            } else if (!articles.isEmpty()) {
-                final JSONObject author = articleQueryService.getAuthor(articles.get(0));
-
-                filler.setArticlesExProperties(request, articles, author, preference);
-            }
+            dataModelService.fillCommon(context, dataModel, preference);
+            dataModelService.fillFaviconURL(dataModel, preference);
+            dataModelService.fillUsite(dataModel);
+            dataModelService.setArticlesExProperties(context, articles, preference);
 
             dataModel.put(Article.ARTICLES, articles);
             final JSONObject pagination = result.optJSONObject(Pagination.PAGINATION);

@@ -1,22 +1,23 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.service;
 
-
-import org.b3log.latke.ioc.inject.Inject;
+import org.b3log.latke.ioc.Inject;
 import org.b3log.latke.logging.Level;
 import org.b3log.latke.logging.Logger;
 import org.b3log.latke.model.Pagination;
@@ -33,7 +34,6 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
-
 
 /**
  * Plugin query service.
@@ -55,7 +55,7 @@ public class PluginQueryService {
      */
     @Inject
     private PluginRepository pluginRepository;
-    
+
     /**
      * Plugin manager.
      */
@@ -66,13 +66,10 @@ public class PluginQueryService {
      * Gets plugins by the specified request json object.
      *
      * @param requestJSONObject the specified request json object, for example,
-     * <pre>
-     * {
-     *     "paginationCurrentPageNum": 1,
-     *     "paginationPageSize": 20,
-     *     "paginationWindowSize": 10,
-     * }, see {@link Pagination} for more details
-     * </pre>
+     *                          "paginationCurrentPageNum": 1,
+     *                          "paginationPageSize": 20,
+     *                          "paginationWindowSize": 10,
+     *                          see {@link Pagination} for more details
      * @return for example,
      * <pre>
      * {
@@ -92,7 +89,7 @@ public class PluginQueryService {
      * @see Pagination
      */
     public JSONObject getPlugins(final JSONObject requestJSONObject)
-        throws ServiceException {
+            throws ServiceException {
         final JSONObject ret = new JSONObject();
 
         try {
@@ -134,11 +131,11 @@ public class PluginQueryService {
 
     /**
      * get the setting(json formatter) of the plugin by the specified pluginoId.
-     * 
+     *
      * @param pluginId the specified pluginId
      * @return the {@link AbstractPlugin}
      * @throws ServiceException service exception
-     * @throws JSONException json exception
+     * @throws JSONException    json exception
      */
     public String getPluginSetting(final String pluginId) throws ServiceException, JSONException {
 
@@ -158,14 +155,5 @@ public class PluginQueryService {
         }
 
         return ret.optString(Plugin.PLUGIN_SETTING);
-    }
-
-    /**
-     * Sets the plugin repository with the specified plugin repository.
-     * 
-     * @param pluginRepository the specified plugin repository
-     */
-    public void setPluginRepository(final PluginRepository pluginRepository) {
-        this.pluginRepository = pluginRepository;
     }
 }

@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.model;
 
@@ -19,11 +21,56 @@ package org.b3log.solo.model;
  * This class defines all common model relevant keys.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @author <a href="mailto:dongxu.wang@acm.org">Dongxu Wang</a>
- * @version 1.6.0.0, Sep 12, 2017
+ * @author <a href="https://hacpai.com/member/e">Dongxu Wang</a>
+ * @version 1.7.0.6, Sep 17, 2019
  * @since 0.3.1
  */
 public final class Common {
+
+    /**
+     * Key of skin cookie name.
+     */
+    public static final String COOKIE_NAME_SKIN = "skin";
+
+    /**
+     * Key of mobile skin cookie name.
+     */
+    public static final String COOKIE_NAME_MOBILE_SKIN = "mobile-skin";
+
+    /**
+     * Key of favicon URL.
+     */
+    public static final String FAVICON_URL = "faviconURL";
+
+    /**
+     * Key of URL.
+     */
+    public static final String URL = "url";
+
+    /**
+     * Key of referer.
+     */
+    public static final String REFERER = "referer";
+
+    /**
+     * Key of upload msg.
+     */
+    public static final String UPLOAD_MSG = "uploadMsg";
+
+    /**
+     * Key of upload URL.
+     */
+    public static final String UPLOAD_URL = "uploadURL";
+
+    /**
+     * Key of upload token.
+     */
+    public static final String UPLOAD_TOKEN = "uploadToken";
+
+    /**
+     * Key of Lute engine available.
+     */
+    public static final String LUTE_AVAILABLE = "luteAvailable";
 
     /**
      * Key of keyword.
@@ -106,21 +153,6 @@ public final class Common {
     public static final String IS_INDEX = "isIndex";
 
     /**
-     * tag-articles.
-     */
-    public static final String TAG_ARTICLES = "tag-articles";
-
-    /**
-     * archive-date-articles.
-     */
-    public static final String ARCHIVED_DATE_ARTICLES = "archive-date-articles";
-
-    /**
-     * author-articles.
-     */
-    public static final String AUTHOR_ARTICLES = "author-articles";
-
-    /**
      * Key of path.
      */
     public static final String PATH = "path";
@@ -196,11 +228,6 @@ public final class Common {
     public static final String ADMIN_USER = "adminUser";
 
     /**
-     * Key of enabled multiple user support.
-     */
-    public static final String ENABLED_MULTIPLE_USER_SUPPORT = "enabledMultipleUserSupport";
-
-    /**
      * Key of is logged in.
      */
     public static final String IS_LOGGED_IN = "isLoggedIn";
@@ -239,16 +266,6 @@ public final class Common {
      * Key of URI.
      */
     public static final String URI = "URI";
-
-    /**
-     * Key of blog.
-     */
-    public static final String BLOG = "blog";
-
-    /**
-     * Key of blog version.
-     */
-    public static final String BLOG_VERSION = "blogVersion";
 
     /**
      * Key of post to community.
@@ -306,11 +323,6 @@ public final class Common {
     public static final String UNUSED_TAGS = "unusedTags";
 
     /**
-     * Key of go to.
-     */
-    public static final String GOTO = "goto";
-
-    /**
      * Key of online visitor count.
      */
     public static final String ONLINE_VISITOR_CNT = "onlineVisitorCnt";
@@ -341,7 +353,7 @@ public final class Common {
     public static final String GRAVATAR = "gravatar";
 
     /**
-     * Private default constructor.
+     * Private constructor.
      */
     private Common() {
     }

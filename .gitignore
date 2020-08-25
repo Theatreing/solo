@@ -1,24 +1,13 @@
-/*
-# ignore all but these:
-!src/
-!.gitignore
-!pom.xml
-!CHANGE_LOGS.html
-!README.md
-!TERMS.md
-!LICENSE
-!nbactions.xml
-!nb-configuration.xml
-!.travis.yml
-!Dockerfile
-!gulpfile.js
-!package.json
+src/main/resources/markdowns/*
+!src/main/resources/markdowns/README.md
 
-src/main/webapp/skins/*
-!src/main/webapp/skins/mobile
-!src/main/webapp/skins/Medium
-
-src/main/webapp/markdowns/*
-!src/main/webapp/markdowns/README.md
-
-.DS_Store
+solo_h2_test/
+target/
+node_modules/
+**/.DS_store
+.idea/
+solo.iml
+*.log
+/.settings/
+/.classpath
+/.project

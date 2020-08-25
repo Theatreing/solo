@@ -1,11 +1,18 @@
-FROM maven:3
-MAINTAINER Liang Ding <dl88250@gmail.com>
+FROM maven:3-jdk-8-alpine as MVN_BUILD
 
-ADD . /solo
-WORKDIR /solo
-RUN mvn install
-WORKDIR /solo/target/solo
+WORKDIR /opt/solo/
+ADD . /tmp
+RUN cd /tmp && mvn package -DskipTests -Pci -q && mv target/solo/* /opt/solo/ \
+&& cp -f /tmp/src/main/resources/docker/* /opt/solo/
 
+FROM openjdk:8-alpine
+LABEL maintainer="Liang Ding<d@b3log.org>"
+
+WORKDIR /opt/solo/
+COPY --from=MVN_BUILD /opt/solo/ /opt/solo/
+RUN apk add --no-cache ca-certificates tzdata
+
+ENV TZ=Asia/Shanghai
 EXPOSE 8080
 
-CMD ["/bin/sh", "-c", "java -cp WEB-INF/lib/*:WEB-INF/classes org.b3log.solo.Starter"]
+ENTRYPOINT [ "java", "-cp", "lib/*:.", "org.b3log.solo.Server" ]

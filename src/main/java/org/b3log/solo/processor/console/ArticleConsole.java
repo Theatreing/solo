@@ -1,49 +1,47 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.processor.console;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.apache.commons.lang.StringUtils;
 import org.b3log.latke.Keys;
 import org.b3log.latke.Latkes;
-import org.b3log.latke.ioc.inject.Inject;
+import org.b3log.latke.http.Request;
+import org.b3log.latke.http.RequestContext;
+import org.b3log.latke.http.annotation.Before;
+import org.b3log.latke.http.renderer.JsonRenderer;
+import org.b3log.latke.ioc.Inject;
+import org.b3log.latke.ioc.Singleton;
 import org.b3log.latke.logging.Level;
 import org.b3log.latke.logging.Logger;
-import org.b3log.latke.model.User;
 import org.b3log.latke.service.LangPropsService;
 import org.b3log.latke.service.ServiceException;
-import org.b3log.latke.servlet.HTTPRequestContext;
-import org.b3log.latke.servlet.HTTPRequestMethod;
-import org.b3log.latke.servlet.annotation.RequestProcessing;
-import org.b3log.latke.servlet.annotation.RequestProcessor;
-import org.b3log.latke.servlet.renderer.JSONRenderer;
-import org.b3log.latke.util.Requests;
 import org.b3log.latke.util.Strings;
 import org.b3log.solo.model.Article;
+import org.b3log.solo.model.Common;
 import org.b3log.solo.service.ArticleMgmtService;
 import org.b3log.solo.service.ArticleQueryService;
 import org.b3log.solo.service.UserQueryService;
-import org.b3log.solo.util.Emotions;
 import org.b3log.solo.util.Images;
-import org.b3log.solo.util.Markdowns;
-import org.b3log.solo.util.QueryResults;
+import org.b3log.solo.util.Solos;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,10 +49,11 @@ import java.util.stream.Collectors;
  * Article console request processing.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @version 1.1.0.0, Feb 15, 2018
+ * @version 1.2.0.2, May 18, 2019
  * @since 0.4.0
  */
-@RequestProcessor
+@Singleton
+@Before(ConsoleAuthAdvice.class)
 public class ArticleConsole {
 
     /**
@@ -87,6 +86,18 @@ public class ArticleConsole {
     private LangPropsService langPropsService;
 
     /**
+     * Pushes an article to community.
+     *
+     * @param context the specified request context
+     */
+    public void pushArticleToCommunity(final RequestContext context) {
+        final JSONObject result = new JSONObject().put(Keys.CODE, 0);
+        context.renderJSON(result);
+        final String articleId = context.param("id");
+        articleMgmtService.pushArticleToCommunity(articleId);
+    }
+
+    /**
      * Gets article thumbs.
      * <p>
      * Renders the response with a json object, for example,
@@ -94,97 +105,48 @@ public class ArticleConsole {
      * {
      *     "sc": true,
      *     "data": [
-     *         "https://img.hacpai.com/bing/20171226.jpg?imageView2/1/w/960/h/520/interlace/1/q/100",
-     *         "https://img.hacpai.com/bing/20171105.jpg?imageView2/1/w/960/h/520/interlace/1/q/100",
-     *         "https://img.hacpai.com/bing/20180105.jpg?imageView2/1/w/960/h/520/interlace/1/q/100",
-     *         "https://img.hacpai.com/bing/20171114.jpg?imageView2/1/w/960/h/520/interlace/1/q/100"
+     *         "https://img.hacpai.com/bing/20171226.jpg?imageView2/1/w/960/h/540/interlace/1/q/100",
+     *         "https://img.hacpai.com/bing/20171105.jpg?imageView2/1/w/960/h/540/interlace/1/q/100",
+     *         "https://img.hacpai.com/bing/20180105.jpg?imageView2/1/w/960/h/540/interlace/1/q/100",
+     *         "https://img.hacpai.com/bing/20171114.jpg?imageView2/1/w/960/h/540/interlace/1/q/100"
      *     ]
      * }
      * </pre>
      * </p>
      *
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @param context  the specified http request context
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/thumbs", method = HTTPRequestMethod.GET)
-    public void getArticleThumbs(final HttpServletRequest request, final HttpServletResponse response, final HTTPRequestContext context)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void getArticleThumbs(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject result = new JSONObject();
         renderer.setJSONObject(result);
         result.put(Keys.STATUS_CODE, true);
-
-        String strN = request.getParameter("n");
+        final Request request = context.getRequest();
+        String strN = context.param("n");
         if (!Strings.isNumeric(strN)) {
             strN = "6";
         }
 
         final int n = Integer.valueOf(strN);
         final List<String> urls = Images.randomImages(n);
-        result.put("data", urls.stream().map(url -> url += "?imageView2/1/w/960/h/520/interlace/1/q/100").collect(Collectors.toList()));
-    }
 
-    /**
-     * Markdowns.
-     * <p>
-     * Renders the response with a json object, for example,
-     * <pre>
-     * {
-     *     "html": ""
-     * }
-     * </pre>
-     * </p>
-     *
-     * @param request  the specified http servlet request, for example,
-     *                 {
-     *                 "markdownText": ""
-     *                 }
-     * @param response the specified http servlet response
-     * @param context  the specified http request context
-     * @throws Exception exception
-     */
-    @RequestProcessing(value = "/console/markdown/2html", method = HTTPRequestMethod.POST)
-    public void markdown2HTML(final HttpServletRequest request, final HttpServletResponse response, final HTTPRequestContext context)
-            throws Exception {
-        final JSONRenderer renderer = new JSONRenderer();
+        // original: 1920*1080
 
-        context.setRenderer(renderer);
-        final JSONObject result = new JSONObject();
-        renderer.setJSONObject(result);
-        result.put(Keys.STATUS_CODE, true);
-
-        final String markdownText = request.getParameter("markdownText");
-        if (Strings.isEmptyOrNull(markdownText)) {
-            result.put("html", "");
-
-            return;
+        final String wStr = context.param("w");
+        int w = Article.ARTICLE_THUMB_IMG_WIDTH;
+        if (Strings.isNumeric(wStr)) {
+            w = Integer.valueOf(wStr);
         }
-
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
+        final int width = w;
+        final String hStr = context.param("h");
+        int h = Article.ARTICLE_THUMB_IMG_HEIGHT;
+        if (Strings.isNumeric(hStr)) {
+            h = Integer.valueOf(hStr);
         }
+        final int height = h;
 
-        try {
-            String html = Emotions.convert(markdownText);
-            html = Markdowns.toHTML(html);
-
-            result.put("html", html);
-        } catch (final Exception e) {
-            LOGGER.log(Level.ERROR, e.getMessage(), e);
-
-            final JSONObject jsonObject = QueryResults.defaultResult();
-            renderer.setJSONObject(jsonObject);
-            jsonObject.put(Keys.MSG, langPropsService.get("getFailLabel"));
-        }
+        result.put("data", urls.stream().map(url -> Images.imageSize(url, width, height)).collect(Collectors.toList()));
     }
 
     /**
@@ -198,7 +160,6 @@ public class ArticleConsole {
      *     "articleAbstract": "",
      *     "articleContent": "",
      *     "articlePermalink": "",
-     *     "articleHadBeenPublished": boolean,
      *     "articleTags": [{
      *         "oId": "",
      *         "tagTitle": ""
@@ -213,32 +174,20 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @param context  the specified http request context
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/*", method = HTTPRequestMethod.GET)
-    public void getArticle(final HttpServletRequest request, final HttpServletResponse response, final HTTPRequestContext context)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void getArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
-
         try {
-            final String articleId = request.getRequestURI().substring((Latkes.getContextPath() + "/console/article/").length());
-
+            final String articleId = context.pathVar("id");
             final JSONObject result = articleQueryService.getArticle(articleId);
             result.put(Keys.STATUS_CODE, true);
             renderer.setJSONObject(result);
         } catch (final ServiceException e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
 
-            final JSONObject jsonObject = QueryResults.defaultResult();
+            final JSONObject jsonObject = new JSONObject().put(Keys.STATUS_CODE, false);
             renderer.setJSONObject(jsonObject);
             jsonObject.put(Keys.MSG, langPropsService.get("getFailLabel"));
         }
@@ -268,57 +217,53 @@ public class ArticleConsole {
      *         "articleViewCount": int,
      *         "articleTags": "tag1, tag2, ....",
      *         "articlePutTop": boolean,
-     *         "articleIsPublished": boolean
+     *         "articleStatus": int
      *      }, ....]
      * }
      * </pre>, order by article update date and sticky(put top).
      * </p>
      *
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @param context  the specified http request context
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/articles/status/*/*/*/*"/* Requests.PAGINATION_PATH_PATTERN */,
-            method = HTTPRequestMethod.GET)
-    public void getArticles(final HttpServletRequest request, final HttpServletResponse response, final HTTPRequestContext context)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void getArticles(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
-
         try {
-            String path = request.getRequestURI().substring((Latkes.getContextPath() + "/console/articles/status/").length());
+            String path = context.requestURI().substring((Latkes.getContextPath() + "/console/articles/status/").length());
             final String status = StringUtils.substringBefore(path, "/");
 
             path = path.substring((status + "/").length());
-            final JSONObject requestJSONObject = Requests.buildPaginationRequest(path);
-            final boolean published = "published".equals(status);
-            requestJSONObject.put(Article.ARTICLE_IS_PUBLISHED, published);
+            final JSONObject requestJSONObject = Solos.buildPaginationRequest(path);
+            requestJSONObject.put(Article.ARTICLE_STATUS, "published".equals(status) ? Article.ARTICLE_STATUS_C_PUBLISHED : Article.ARTICLE_STATUS_C_DRAFT);
 
             final JSONArray excludes = new JSONArray();
-
             excludes.put(Article.ARTICLE_CONTENT);
-            excludes.put(Article.ARTICLE_UPDATE_DATE);
-            excludes.put(Article.ARTICLE_CREATE_DATE);
-            excludes.put(Article.ARTICLE_AUTHOR_EMAIL);
-            excludes.put(Article.ARTICLE_HAD_BEEN_PUBLISHED);
-            excludes.put(Article.ARTICLE_IS_PUBLISHED);
+            excludes.put(Article.ARTICLE_UPDATED);
+            excludes.put(Article.ARTICLE_CREATED);
+            excludes.put(Article.ARTICLE_AUTHOR_ID);
             excludes.put(Article.ARTICLE_RANDOM_DOUBLE);
             requestJSONObject.put(Keys.EXCLUDES, excludes);
 
-            final JSONObject result = articleQueryService.getArticles(requestJSONObject);
+            final String keyword = StringUtils.trim(context.param("k"));
+            if (StringUtils.isNotBlank(keyword)) {
+                requestJSONObject.put(Common.KEYWORD, keyword);
+            }
 
+            final JSONObject result = articleQueryService.getArticles(requestJSONObject);
             result.put(Keys.STATUS_CODE, true);
             renderer.setJSONObject(result);
+
+            final JSONArray articles = result.optJSONArray(Article.ARTICLES);
+            for (int i = 0; i < articles.length(); i++) {
+                final JSONObject article = articles.optJSONObject(i);
+                String title = article.optString(Article.ARTICLE_TITLE);
+                title = StringEscapeUtils.escapeXml(title);
+                article.put(Article.ARTICLE_TITLE, title);
+            }
         } catch (final Exception e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
 
-            final JSONObject jsonObject = QueryResults.defaultResult();
+            final JSONObject jsonObject = new JSONObject().put(Keys.STATUS_CODE, false);
             renderer.setJSONObject(jsonObject);
             jsonObject.put(Keys.MSG, langPropsService.get("getFailLabel"));
         }
@@ -336,27 +281,18 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param context   the specified http request context
-     * @param request   the specified http servlet request
-     * @param response  the specified http servlet response
-     * @param articleId the specified article id
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/{articleId}", method = HTTPRequestMethod.DELETE)
-    public void removeArticle(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response,
-                              final String articleId) throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void removeArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
         renderer.setJSONObject(ret);
+        final String articleId = context.pathVar("id");
+        final JSONObject currentUser = Solos.getCurrentUser(context.getRequest(), context.getResponse());
 
         try {
-            if (!articleQueryService.canAccessArticle(articleId, request)) {
+            if (!articleQueryService.canAccessArticle(articleId, currentUser)) {
                 ret.put(Keys.STATUS_CODE, false);
                 ret.put(Keys.MSG, langPropsService.get("forbiddenLabel"));
 
@@ -389,28 +325,18 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param context  the specified http request context
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/unpublish/*", method = HTTPRequestMethod.PUT)
-    public void cancelPublishArticle(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void cancelPublishArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
         renderer.setJSONObject(ret);
 
         try {
-            final String articleId = request.getRequestURI().substring((Latkes.getContextPath() + "/console/article/unpublish/").length());
-
-            if (!articleQueryService.canAccessArticle(articleId, request)) {
+            final String articleId = context.pathVar("id");
+            final JSONObject currentUser = Solos.getCurrentUser(context.getRequest(), context.getResponse());
+            if (!articleQueryService.canAccessArticle(articleId, currentUser)) {
                 ret.put(Keys.STATUS_CODE, false);
                 ret.put(Keys.MSG, langPropsService.get("forbiddenLabel"));
 
@@ -443,26 +369,14 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param context  the specified http request context
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/canceltop/*", method = HTTPRequestMethod.PUT)
-    public void cancelTopArticle(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void cancelTopArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
-
         renderer.setJSONObject(ret);
-
-        if (!userQueryService.isAdminLoggedIn(request)) {
+        if (!Solos.isAdminLoggedIn(context)) {
             ret.put(Keys.MSG, langPropsService.get("forbiddenLabel"));
             ret.put(Keys.STATUS_CODE, false);
 
@@ -470,10 +384,8 @@ public class ArticleConsole {
         }
 
         try {
-            final String articleId = request.getRequestURI().substring((Latkes.getContextPath() + "/console/article/canceltop/").length());
-
+            final String articleId = context.pathVar("id");
             articleMgmtService.topArticle(articleId, false);
-
             ret.put(Keys.STATUS_CODE, true);
             ret.put(Keys.MSG, langPropsService.get("cancelTopSuccLabel"));
         } catch (final Exception e) {
@@ -498,26 +410,14 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param context  the specified http request context
-     * @param request  the specified http servlet request
-     * @param response the specified http servlet response
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/puttop/*", method = HTTPRequestMethod.PUT)
-    public void putTopArticle(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void putTopArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
-
         renderer.setJSONObject(ret);
-
-        if (!userQueryService.isAdminLoggedIn(request)) {
+        if (!Solos.isAdminLoggedIn(context)) {
             ret.put(Keys.MSG, langPropsService.get("forbiddenLabel"));
             ret.put(Keys.STATUS_CODE, false);
 
@@ -525,10 +425,8 @@ public class ArticleConsole {
         }
 
         try {
-            final String articleId = request.getRequestURI().substring((Latkes.getContextPath() + "/console/article/puttop/").length());
-
+            final String articleId = context.pathVar("id");
             articleMgmtService.topArticle(articleId, true);
-
             ret.put(Keys.STATUS_CODE, true);
             ret.put(Keys.MSG, langPropsService.get("putTopSuccLabel"));
         } catch (final Exception e) {
@@ -544,6 +442,26 @@ public class ArticleConsole {
     /**
      * Updates an article by the specified request json object.
      * <p>
+     * The specified request json object, for example,
+     * <pre>
+     * {
+     *     "article": {
+     *         "oId": "",
+     *         "articleTitle": "",
+     *         "articleAbstract": "",
+     *         "articleContent": "",
+     *         "articleTags": "tag1,tag2,tag3", // optional, default set "待分类"
+     *         "articlePermalink": "", // optional
+     *         "articleStatus": int, // 0: published, 1: draft
+     *         "articleSignId": "" // optional
+     *         "articleCommentable": boolean,
+     *         "articleViewPwd": "",
+     *         "postToCommunity": boolean
+     *     }
+     *  }
+     * </pre>
+     * </p>
+     * <p>
      * Renders the response with a json object, for example,
      * <pre>
      * {
@@ -553,59 +471,35 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param context  the specified http request context
-     * @param request  the specified http servlet request, for example,
-     *                 {
-     *                 "article": {
-     *                 "oId": "",
-     *                 "articleTitle": "",
-     *                 "articleAbstract": "",
-     *                 "articleContent": "",
-     *                 "articleTags": "tag1,tag2,tag3",
-     *                 "articlePermalink": "", // optional
-     *                 "articleIsPublished": boolean,
-     *                 "articleSignId": "" // optional
-     *                 "articleCommentable": boolean,
-     *                 "articleViewPwd": "",
-     *                 "postToCommunity": boolean
-     *                 }
-     *                 }
-     * @param response the specified http servlet response
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/", method = HTTPRequestMethod.PUT)
-    public void updateArticle(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void updateArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
-
         try {
-            final JSONObject requestJSONObject = Requests.parseRequestJSONObject(request, response);
+            final JSONObject requestJSONObject = context.requestJSON();
             final JSONObject article = requestJSONObject.getJSONObject(Article.ARTICLE);
             final String articleId = article.getString(Keys.OBJECT_ID);
             renderer.setJSONObject(ret);
 
-            if (!articleQueryService.canAccessArticle(articleId, request)) {
+            final JSONObject currentUser = Solos.getCurrentUser(context.getRequest(), context.getResponse());
+            if (!articleQueryService.canAccessArticle(articleId, currentUser)) {
                 ret.put(Keys.MSG, langPropsService.get("forbiddenLabel"));
                 ret.put(Keys.STATUS_CODE, false);
 
                 return;
             }
 
+            // 打印请求日志，如果发生特殊情况丢失数据，至少还可以根据日志寻回内容
+            LOGGER.log(Level.INFO, "Updates an article request [" + requestJSONObject.toString() + "]");
+
             articleMgmtService.updateArticle(requestJSONObject);
 
             ret.put(Keys.MSG, langPropsService.get("updateSuccLabel"));
             ret.put(Keys.STATUS_CODE, true);
         } catch (final ServiceException e) {
-            LOGGER.log(Level.ERROR, e.getMessage(), e);
-
-            final JSONObject jsonObject = QueryResults.defaultResult();
+            final JSONObject jsonObject = new JSONObject().put(Keys.STATUS_CODE, false);
             renderer.setJSONObject(jsonObject);
             jsonObject.put(Keys.MSG, e.getMessage());
         }
@@ -613,6 +507,25 @@ public class ArticleConsole {
 
     /**
      * Adds an article with the specified request.
+     * <p>
+     * The specified request json object, for example,
+     * <pre>
+     * {
+     *     "article": {
+     *         "articleTitle": "",
+     *         "articleAbstract": "",
+     *         "articleContent": "",
+     *         "articleTags": "tag1,tag2,tag3", // optional, default set "待分类"
+     *         "articlePermalink": "", // optional
+     *         "articleStatus": int, // 0: published, 1: draft
+     *         "postToCommunity": boolean,
+     *         "articleSignId": "" // optional
+     *         "articleCommentable": boolean,
+     *         "articleViewPwd": ""
+     *     }
+     * }
+     * </pre>
+     * </p>
      * <p>
      * Renders the response with a json object, for example,
      * <pre>
@@ -624,41 +537,19 @@ public class ArticleConsole {
      * </pre>
      * </p>
      *
-     * @param request  the specified http servlet request, for example,
-     *                 {
-     *                 "article": {
-     *                 "articleTitle": "",
-     *                 "articleAbstract": "",
-     *                 "articleContent": "",
-     *                 "articleTags": "tag1,tag2,tag3",
-     *                 "articlePermalink": "", // optional
-     *                 "articleIsPublished": boolean,
-     *                 "postToCommunity": boolean,
-     *                 "articleSignId": "" // optional
-     *                 "articleCommentable": boolean,
-     *                 "articleViewPwd": ""
-     *                 }
-     *                 }
-     * @param response the specified http servlet response
-     * @param context  the specified http request context
-     * @throws Exception exception
+     * @param context the specified request context
      */
-    @RequestProcessing(value = "/console/article/", method = HTTPRequestMethod.POST)
-    public void addArticle(final HttpServletRequest request, final HttpServletResponse response, final HTTPRequestContext context)
-            throws Exception {
-        if (!userQueryService.isLoggedIn(request, response)) {
-            response.sendError(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        final JSONRenderer renderer = new JSONRenderer();
+    public void addArticle(final RequestContext context) {
+        final JsonRenderer renderer = new JsonRenderer();
         context.setRenderer(renderer);
         final JSONObject ret = new JSONObject();
-
         try {
-            final JSONObject requestJSONObject = Requests.parseRequestJSONObject(request, response);
-            final JSONObject currentUser = userQueryService.getCurrentUser(request);
-            requestJSONObject.getJSONObject(Article.ARTICLE).put(Article.ARTICLE_AUTHOR_EMAIL, currentUser.getString(User.USER_EMAIL));
+            final JSONObject requestJSONObject = context.requestJSON();
+            final JSONObject currentUser = Solos.getCurrentUser(context.getRequest(), context.getResponse());
+            requestJSONObject.getJSONObject(Article.ARTICLE).put(Article.ARTICLE_AUTHOR_ID, currentUser.getString(Keys.OBJECT_ID));
+
+            // 打印请求日志，如果发生特殊情况丢失数据，至少还可以根据日志寻回内容
+            LOGGER.log(Level.INFO, "Adds an article request [" + requestJSONObject.toString() + "]");
 
             final String articleId = articleMgmtService.addArticle(requestJSONObject);
             ret.put(Keys.OBJECT_ID, articleId);
@@ -667,9 +558,7 @@ public class ArticleConsole {
 
             renderer.setJSONObject(ret);
         } catch (final ServiceException e) {
-            LOGGER.log(Level.ERROR, e.getMessage());
-
-            final JSONObject jsonObject = QueryResults.defaultResult();
+            final JSONObject jsonObject = new JSONObject().put(Keys.STATUS_CODE, false);
             renderer.setJSONObject(jsonObject);
             jsonObject.put(Keys.MSG, e.getMessage());
         }

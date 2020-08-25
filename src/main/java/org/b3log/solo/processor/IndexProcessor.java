@@ -1,65 +1,59 @@
 /*
- * Copyright (c) 2010-2018, b3log.org & hacpai.com
+ * Solo - A small and beautiful blogging system written in Java.
+ * Copyright (c) 2010-present, b3log.org
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 package org.b3log.solo.processor;
 
-import freemarker.template.Template;
 import org.apache.commons.lang.StringUtils;
 import org.b3log.latke.Keys;
-import org.b3log.latke.ioc.inject.Inject;
+import org.b3log.latke.Latkes;
+import org.b3log.latke.http.*;
+import org.b3log.latke.http.annotation.RequestProcessing;
+import org.b3log.latke.http.annotation.RequestProcessor;
+import org.b3log.latke.http.renderer.AbstractFreeMarkerRenderer;
+import org.b3log.latke.ioc.Inject;
 import org.b3log.latke.logging.Level;
 import org.b3log.latke.logging.Logger;
 import org.b3log.latke.model.Pagination;
 import org.b3log.latke.service.LangPropsService;
 import org.b3log.latke.service.ServiceException;
-import org.b3log.latke.servlet.HTTPRequestContext;
-import org.b3log.latke.servlet.HTTPRequestMethod;
-import org.b3log.latke.servlet.URIPatternMode;
-import org.b3log.latke.servlet.annotation.RequestProcessing;
-import org.b3log.latke.servlet.annotation.RequestProcessor;
-import org.b3log.latke.servlet.renderer.freemarker.AbstractFreeMarkerRenderer;
-import org.b3log.latke.servlet.renderer.freemarker.FreeMarkerRenderer;
 import org.b3log.latke.util.Locales;
-import org.b3log.latke.util.Requests;
-import org.b3log.latke.util.freemarker.Templates;
-import org.b3log.solo.SoloServletListener;
+import org.b3log.latke.util.Paginator;
+import org.b3log.latke.util.URLs;
+import org.b3log.solo.Server;
 import org.b3log.solo.model.Common;
 import org.b3log.solo.model.Option;
-import org.b3log.solo.model.Skin;
-import org.b3log.solo.processor.renderer.ConsoleRenderer;
-import org.b3log.solo.processor.util.Filler;
-import org.b3log.solo.service.PreferenceQueryService;
+import org.b3log.solo.service.DataModelService;
+import org.b3log.solo.service.InitService;
+import org.b3log.solo.service.OptionQueryService;
 import org.b3log.solo.service.StatisticMgmtService;
 import org.b3log.solo.util.Skins;
+import org.b3log.solo.util.Solos;
 import org.json.JSONObject;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.util.Calendar;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Index processor.
  *
  * @author <a href="http://88250.b3log.org">Liang Ding</a>
- * @author <a href="mailto:385321165@qq.com">DASHU</a>
- * @version 1.2.4.6, Jun 28, 2017
+ * @author <a href="https://hacpai.com/member/DASHU">DASHU</a>
+ * @author <a href="https://vanessa.b3log.org">Vanessa</a>
+ * @version 1.2.4.17, Jul 17, 2019
  * @since 0.3.1
  */
 @RequestProcessor
@@ -71,16 +65,16 @@ public class IndexProcessor {
     private static final Logger LOGGER = Logger.getLogger(IndexProcessor.class);
 
     /**
-     * Filler.
+     * DataModelService.
      */
     @Inject
-    private Filler filler;
+    private DataModelService dataModelService;
 
     /**
-     * Preference query service.
+     * Option query service.
      */
     @Inject
-    private PreferenceQueryService preferenceQueryService;
+    private OptionQueryService optionQueryService;
 
     /**
      * Language service.
@@ -95,65 +89,53 @@ public class IndexProcessor {
     private StatisticMgmtService statisticMgmtService;
 
     /**
-     * Gets the request page number from the specified request URI.
-     *
-     * @param requestURI the specified request URI
-     * @return page number, returns {@code -1} if the specified request URI can not convert to an number
+     * Initialization service.
      */
-    private static int getCurrentPageNum(final String requestURI) {
-        final String pageNumString = StringUtils.substringAfterLast(requestURI, "/");
-
-        return Requests.getCurrentPageNum(pageNumString);
-    }
+    @Inject
+    private InitService initService;
 
     /**
      * Shows index with the specified context.
      *
-     * @param context  the specified context
-     * @param request  the specified HTTP servlet request
-     * @param response the specified HTTP servlet response
+     * @param context the specified context
+     * @throws Exception exception
      */
-    @RequestProcessing(value = {"/\\d*", ""}, uriPatternsMode = URIPatternMode.REGEX, method = HTTPRequestMethod.GET)
-    public void showIndex(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response) {
-        final AbstractFreeMarkerRenderer renderer = new FreeMarkerRenderer();
-        context.setRenderer(renderer);
-        renderer.setTemplateName("index.ftl");
+    @RequestProcessing(value = {"", "/"}, method = HttpMethod.GET)
+    public void showIndex(final RequestContext context) {
+        final Request request = context.getRequest();
+        final Response response = context.getResponse();
+        final AbstractFreeMarkerRenderer renderer = new SkinRenderer(context, "index.ftl");
         final Map<String, Object> dataModel = renderer.getDataModel();
-        final String requestURI = request.getRequestURI();
-
         try {
-            final int currentPageNum = getCurrentPageNum(requestURI);
-            final JSONObject preference = preferenceQueryService.getPreference();
+            final int currentPageNum = Paginator.getPage(request);
+            final JSONObject preference = optionQueryService.getPreference();
 
-            // https://github.com/b3log/solo/issues/12060
-            String specifiedSkin = Skins.getSkinDirName(request);
-            if (null != specifiedSkin) {
-                if ("default".equals(specifiedSkin)) {
-                    specifiedSkin = preference.optString(Option.ID_C_SKIN_DIR_NAME);
+            // 前台皮肤切换 https://github.com/b3log/solo/issues/12060
+            String specifiedSkin = Skins.getSkinDirName(context);
+            if (StringUtils.isBlank(specifiedSkin)) {
+                final JSONObject skinOpt = optionQueryService.getSkin();
+                specifiedSkin = Solos.isMobile(request) ?
+                        skinOpt.optString(Option.ID_C_MOBILE_SKIN_DIR_NAME) :
+                        skinOpt.optString(Option.ID_C_SKIN_DIR_NAME);
+            }
+            request.setAttribute(Keys.TEMAPLTE_DIR_NAME, specifiedSkin);
 
-                    final Cookie cookie = new Cookie(Skin.SKIN, null);
-                    cookie.setMaxAge(60 * 60); // 1 hour
-                    cookie.setPath("/");
-                    response.addCookie(cookie);
-                }
+            Cookie cookie;
+            if (!Solos.isMobile(request)) {
+                cookie = new Cookie(Common.COOKIE_NAME_SKIN, specifiedSkin);
             } else {
-                specifiedSkin = preference.optString(Option.ID_C_SKIN_DIR_NAME);
+                cookie = new Cookie(Common.COOKIE_NAME_MOBILE_SKIN, specifiedSkin);
             }
+            cookie.setMaxAge(60 * 60); // 1 hour
+            cookie.setPath("/");
+            response.addCookie(cookie);
 
-            final Set<String> skinDirNames = Skins.getSkinDirNames();
-            if (skinDirNames.contains(specifiedSkin)) {
-                Templates.MAIN_CFG.setServletContextForTemplateLoading(SoloServletListener.getServletContext(),
-                        "/skins/" + specifiedSkin);
-                request.setAttribute(Keys.TEMAPLTE_DIR_NAME, specifiedSkin);
-            }
+            Skins.fillLangs(preference.optString(Option.ID_C_LOCALE_STRING), (String) context.attr(Keys.TEMAPLTE_DIR_NAME), dataModel);
 
-            Skins.fillLangs(preference.optString(Option.ID_C_LOCALE_STRING), (String) request.getAttribute(Keys.TEMAPLTE_DIR_NAME), dataModel);
-
-            filler.fillIndexArticles(request, dataModel, currentPageNum, preference);
-
-            filler.fillSide(request, dataModel, preference);
-            filler.fillBlogHeader(request, response, dataModel, preference);
-            filler.fillBlogFooter(request, dataModel, preference);
+            dataModelService.fillIndexArticles(context, dataModel, currentPageNum, preference);
+            dataModelService.fillCommon(context, dataModel, preference);
+            dataModelService.fillFaviconURL(dataModel, preference);
+            dataModelService.fillUsite(dataModel);
 
             dataModel.put(Pagination.PAGINATION_CURRENT_PAGE_NUM, currentPageNum);
             final int previousPageNum = currentPageNum > 1 ? currentPageNum - 1 : 0;
@@ -162,156 +144,100 @@ public class IndexProcessor {
             final Integer pageCount = (Integer) dataModel.get(Pagination.PAGINATION_PAGE_COUNT);
             final int nextPageNum = currentPageNum + 1 > pageCount ? pageCount : currentPageNum + 1;
             dataModel.put(Pagination.PAGINATION_NEXT_PAGE_NUM, nextPageNum);
-
             dataModel.put(Common.PATH, "");
 
-            statisticMgmtService.incBlogViewCount(request, response);
-
-            // https://github.com/b3log/solo/issues/12060
-            if (!preference.optString(Skin.SKIN_DIR_NAME).equals(specifiedSkin) && !Requests.mobileRequest(request)) {
-                final Cookie cookie = new Cookie(Skin.SKIN, specifiedSkin);
-                cookie.setMaxAge(60 * 60); // 1 hour
-                cookie.setPath("/");
-                response.addCookie(cookie);
-            }
+            statisticMgmtService.incBlogViewCount(context, response);
         } catch (final ServiceException e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
 
-            try {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            } catch (final IOException ex) {
-                LOGGER.error(ex.getMessage());
-            }
+            context.sendError(404);
         }
+    }
+
+    /**
+     * Shows start page.
+     *
+     * @param context the specified context
+     */
+    @RequestProcessing(value = "/start", method = HttpMethod.GET)
+    public void showStart(final RequestContext context) {
+        if (initService.isInited() && null != Solos.getCurrentUser(context.getRequest(), context.getResponse())) {
+            context.sendRedirect(Latkes.getServePath());
+
+            return;
+        }
+
+        String referer = context.header("referer");
+        if (StringUtils.isBlank(referer) || !isInternalLinks(referer)) {
+            referer = Latkes.getServePath();
+        }
+
+        final AbstractFreeMarkerRenderer renderer = new SkinRenderer(context, "common-template/start.ftl");
+        final Map<String, Object> dataModel = renderer.getDataModel();
+        final Request request = context.getRequest();
+        final Map<String, String> langs = langPropsService.getAll(Locales.getLocale(request));
+        dataModel.putAll(langs);
+        dataModel.put(Common.VERSION, Server.VERSION);
+        dataModel.put(Common.STATIC_RESOURCE_VERSION, Latkes.getStaticResourceVersion());
+        dataModel.put(Common.YEAR, String.valueOf(Calendar.getInstance().get(Calendar.YEAR)));
+        dataModel.put(Common.REFERER, URLs.encode(referer));
+        Keys.fillRuntime(dataModel);
+        dataModelService.fillMinified(dataModel);
+        dataModelService.fillFaviconURL(dataModel, optionQueryService.getPreference());
+        dataModelService.fillUsite(dataModel);
+        Solos.addGoogleNoIndex(context);
+    }
+
+    /**
+     * Logout.
+     *
+     * @param context the specified context
+     */
+    @RequestProcessing(value = "/logout", method = HttpMethod.GET)
+    public void logout(final RequestContext context) {
+        final Request request = context.getRequest();
+
+        Solos.logout(request, context.getResponse());
+
+        Solos.addGoogleNoIndex(context);
+        context.sendRedirect(Latkes.getServePath());
     }
 
     /**
      * Shows kill browser page with the specified context.
      *
-     * @param context  the specified context
-     * @param request  the specified HTTP servlet request
-     * @param response the specified HTTP servlet response
+     * @param context the specified context
      */
-    @RequestProcessing(value = "/kill-browser", method = HTTPRequestMethod.GET)
-    public void showKillBrowser(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response) {
-        final AbstractFreeMarkerRenderer renderer = new KillBrowserRenderer();
-
-        context.setRenderer(renderer);
-
+    @RequestProcessing(value = "/kill-browser", method = HttpMethod.GET)
+    public void showKillBrowser(final RequestContext context) {
+        final Request request = context.getRequest();
+        final AbstractFreeMarkerRenderer renderer = new SkinRenderer(context, "common-template/kill-browser.ftl");
         final Map<String, Object> dataModel = renderer.getDataModel();
-
         try {
             final Map<String, String> langs = langPropsService.getAll(Locales.getLocale(request));
-
             dataModel.putAll(langs);
-            final JSONObject preference = preferenceQueryService.getPreference();
-
-            filler.fillBlogHeader(request, response, dataModel, preference);
-            filler.fillBlogFooter(request, dataModel, preference);
+            final JSONObject preference = optionQueryService.getPreference();
+            dataModelService.fillCommon(context, dataModel, preference);
+            dataModelService.fillFaviconURL(dataModel, preference);
+            dataModelService.fillUsite(dataModel);
             Keys.fillServer(dataModel);
             Keys.fillRuntime(dataModel);
-            filler.fillMinified(dataModel);
+            dataModelService.fillMinified(dataModel);
         } catch (final ServiceException e) {
             LOGGER.log(Level.ERROR, e.getMessage(), e);
 
-            try {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            } catch (final IOException ex) {
-                LOGGER.error(ex.getMessage());
-            }
+            context.sendError(404);
         }
     }
 
     /**
-     * Show register page.
+     * Preventing unvalidated redirects and forwards. See more at:
+     * <a href="https://www.owasp.org/index.php/Unvalidated_Redirects_and_Forwards_Cheat_Sheet">https://www.owasp.org/index.php/
+     * Unvalidated_Redirects_and_Forwards_Cheat_Sheet</a>.
      *
-     * @param context  the specified context
-     * @param request  the specified HTTP servlet request
-     * @param response the specified HTTP servlet response
+     * @return whether the destinationURL is an internal link
      */
-    @RequestProcessing(value = "/register", method = HTTPRequestMethod.GET)
-    public void register(final HTTPRequestContext context, final HttpServletRequest request, final HttpServletResponse response) {
-        final AbstractFreeMarkerRenderer renderer = new ConsoleRenderer();
-
-        context.setRenderer(renderer);
-
-        renderer.setTemplateName("register.ftl");
-
-        final Map<String, Object> dataModel = renderer.getDataModel();
-
-        try {
-            final Map<String, String> langs = langPropsService.getAll(Locales.getLocale(request));
-
-            dataModel.putAll(langs);
-
-            final JSONObject preference = preferenceQueryService.getPreference();
-
-            filler.fillBlogFooter(request, dataModel, preference);
-            filler.fillMinified(dataModel);
-        } catch (final ServiceException e) {
-            LOGGER.log(Level.ERROR, e.getMessage(), e);
-
-            try {
-                response.sendError(HttpServletResponse.SC_NOT_FOUND);
-            } catch (final IOException ex) {
-                LOGGER.error(ex.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Kill browser (kill-browser.ftl) HTTP response renderer.
-     *
-     * @author <a href="http://88250.b3log.org">Liang Ding</a>
-     * @version 1.0.0.0, Sep 18, 2011
-     * @since 0.3.1
-     */
-    private static final class KillBrowserRenderer extends AbstractFreeMarkerRenderer {
-
-        /**
-         * Logger.
-         */
-        private static final Logger LOGGER = Logger.getLogger(KillBrowserRenderer.class);
-
-        @Override
-        public void render(final HTTPRequestContext context) {
-            final HttpServletResponse response = context.getResponse();
-
-            response.setContentType("text/html");
-            response.setCharacterEncoding("UTF-8");
-
-            try {
-                final Template template = ConsoleRenderer.TEMPLATE_CFG.getTemplate("kill-browser.ftl");
-
-                final PrintWriter writer = response.getWriter();
-
-                final StringWriter stringWriter = new StringWriter();
-
-                template.setOutputEncoding("UTF-8");
-                template.process(getDataModel(), stringWriter);
-
-                final String pageContent = stringWriter.toString();
-
-                writer.write(pageContent);
-                writer.flush();
-                writer.close();
-            } catch (final Exception e) {
-                try {
-                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                } catch (final IOException ex) {
-                    LOGGER.log(Level.ERROR, "Can not sned error 500!", ex);
-                }
-            }
-        }
-
-        @Override
-        protected void afterRender(final HTTPRequestContext context) throws Exception {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        protected void beforeRender(final HTTPRequestContext context) throws Exception {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
+    private boolean isInternalLinks(final String destinationURL) {
+        return destinationURL.startsWith(Latkes.getServePath());
     }
 }
